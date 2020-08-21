@@ -1,0 +1,60 @@
+"The Edd Sheeran Problem"
+
+This is a program that separates individual songs from a live set with minimal parameters,
+and no temporal parameters.
+
+It achieves this by using a trained audio classifier to produce a classification array from an incoming audio buffer.
+Each classification in the array represents 500ms of audio which is given a label of 0, 1 or 2.
+
+0 = Music,
+1 = Noise,
+2 = Speech,
+
+Which are defined as such:
+Each category can be defined as:
+0. Music - which is anything within the context of a track
+1. Noise - any sound made by the audience.
+2. Speech - which is any speech/interaction with the crowd outside of the context of a track
+
+A decision is made on whether there is a track split depending on how abundant crowd noise is within a track,
+since it isn't feasible to differentiate between sung speech and spoken speech at the moment.
+
+This boils the program down to two main functions:
+
+A classifier and a decision function:
+
+___________________________________________________________________________________________________________________
+Classifier:
+
+predictions, log_fs = get_classification(input_signal, fs, classifier, verbose=False, frame_length=0.5, tic=0)
+
+inputs:
+    input_signal - an input array of audio, mono or stereo
+    fs = sample-rate of 44.1 or 22.05kHz
+            the first thing i do is down-sample to 22.05kHz anyway.
+    classifier = a classifier object loaded in using the joblib module
+            this is the thing that knows the difference between Music, Noise and Speech.
+    verbose = True - for lots of random print text to remind you its actually doing something.
+    frame_length = 0.5, don't change this, it will break idk why i didn't hard code it
+    tic = this takes the start time in the form time.perf_counter() to show how long it's been running
+
+outputs:
+    predictions = an array of 0's 1's and 2's corresponding with classifications made by the classifier object
+    log_fs = the sample-rate of the predictions - should be 2Hz right now but would vary with frame overlap
+
+_____________________________________________________________________________________________________________
+Decision Function:
+
+cut, cut_point = make_decision(predictions, log_fs, n_noise_thresh=5)
+
+inputs:
+    predictions = the array that comes form 'get_classification'
+    log_fs = sample-rate of predictions
+    n_noise_thresh = number of 500ms noise instances needed for a section to classify as the start/end of a song
+
+outputs:
+    cut = boolean to say if its the beginning/end of a song or not,
+            True if its a new song, and False if not.
+    cut_point = The time in seconds relative to the beginning of the buffer
+            of the point that should be considered to be a new song.
+            
