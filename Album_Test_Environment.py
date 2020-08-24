@@ -5,7 +5,7 @@ from scipy.io import wavfile
 import glob
 import datetime as dt
 import numpy as np
-import Sheeran_Functions as sf
+import Sheeran_Functions_mod as sf
 import pickle as pkl
 
 # -- algorithm imports -- 

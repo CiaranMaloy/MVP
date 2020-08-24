@@ -4,9 +4,16 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+pylint = "*"
 
 [packages]
 scipy = "*"
+numpy = "*"
+pydub = "*"
+python-speech-features = "*"
+joblib = "*"
+sklearn = "*"
+matplotlib = "*"
 
 [requires]
-python_version = "3.7"
+python_version = "3.6.2"

@@ -26,7 +26,7 @@ A classifier and a decision function:
 ___________________________________________________________________________________________________________________
 Classifier:
 
-predictions, log_fs = get_classification(input_signal, fs, classifier, verbose=False, frame_length=0.5, tic=0)
+predictions, log_fs = get_classification(input_signal, fs, classifier, rms_threshold=0.08, verbose=False, frame_length=0.5, tic=0)
 
 inputs:
     input_signal - an input array of audio, mono or stereo
@@ -34,6 +34,8 @@ inputs:
             the first thing i do is down-sample to 22.05kHz anyway.
     classifier = a classifier object loaded in using the joblib module
             this is the thing that knows the difference between Music, Noise and Speech.
+    rms_threshold = rms level above which the input is assumed to be music.
+             max rms level is 0.707, which is the rms of a sine wave with an amplitude of 1
     verbose = True - for lots of random print text to remind you its actually doing something.
     frame_length = 0.5, don't change this, it will break idk why i didn't hard code it
     tic = this takes the start time in the form time.perf_counter() to show how long it's been running
@@ -51,6 +53,7 @@ inputs:
     predictions = the array that comes form 'get_classification'
     log_fs = sample-rate of predictions
     n_noise_thresh = number of 500ms noise instances needed for a section to classify as the start/end of a song
+                    each threshold is 0.5s long, so for smaller buffers use a smaller threshold
 
 outputs:
     cut = boolean to say if its the beginning/end of a song or not,

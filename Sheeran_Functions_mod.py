@@ -275,9 +275,10 @@ def sec_to_time(seconds):
 
 
 # Main Functions
-def get_classification(input_signal, fs, classifier, verbose=False, frame_length=0.5, tic=0):
+def get_classification(input_signal, fs, classifier, rms_threshold=0.09, verbose=False, frame_length=0.5, tic=0):
     fs, sig = preprocess(fs, input_signal)
     n_frames_in_signal = int(math.floor(len(sig) / (fs * frame_length)))
+    pred_bool = True
 
     predictions = []
     log = []
@@ -286,65 +287,79 @@ def get_classification(input_signal, fs, classifier, verbose=False, frame_length
         print('Processing')
         print('Frames:' + str(n_frames_in_signal))
 
-    for n_frame in range(n_frames_in_signal):
+ 
+    rms = rms_value(input_signal)
+    if rms < rms_threshold:   
 
-        # sometimes things take a while so....
-        if verbose:
-            if n_frame % 100 == 0:
-                print(str(n_frame) + '/' + str(n_frames_in_signal))
-                c_time = time.perf_counter()
-                time_taken_s = c_time - tic
-                print('Time Taken: ' + sec_to_time(time_taken_s))
+        # -- 
+        for n_frame in range(n_frames_in_signal):
 
-        a = int(n_frame * fs * frame_length)
-        b = int((n_frame + 1) * fs * frame_length)
-        frame = sig[a:b]
+            # sometimes things take a while so....
+            if verbose:
+                if n_frame % 100 == 0:
+                    print(str(n_frame) + '/' + str(n_frames_in_signal))
+                    c_time = time.perf_counter()
+                    time_taken_s = c_time - tic
+                    print('Time Taken: ' + sec_to_time(time_taken_s))
 
-        out = percepts(fs, frame)
-        # Order in is [mfcc, spec_cent, spec_ent, zcr]
+            a = int(n_frame * fs * frame_length)
+            b = int((n_frame + 1) * fs * frame_length)
+            frame = sig[a:b]
 
-        x = []
-        for value in out['mfcc']:
-            x.extend(value)
-        x.extend(out['ave_mfcc'])
-        x.extend([out['ave_spec_cent']])
-        x.extend(out['spec_cent'])
-        x.extend([out['ave_spec_ent']])
-        x.extend(out['spec_ent'])
-        x.extend([out['ave_zcr']])
-        x.extend(out['zcr'])
+            out = percepts(fs, frame)
+            # Order in is [mfcc, spec_cent, spec_ent, zcr]
 
-        x = np.array(x)
-        x = x.reshape(1, -1)
+            x = []
+            for value in out['mfcc']:
+                x.extend(value)
+            x.extend(out['ave_mfcc'])
+            x.extend([out['ave_spec_cent']])
+            x.extend(out['spec_cent'])
+            x.extend([out['ave_spec_ent']])
+            x.extend(out['spec_ent'])
+            x.extend([out['ave_zcr']])
+            x.extend(out['zcr'])
 
-        # temporary 'isnan' detection - basically just handles 0 errors after the fact
-        # this CANNOT be included in training and testing!!!!!!!!!! it would cause false representaiton 
-        for i in range(len(x[0])):
-            if math.isnan(x[0][i]):
-                x[0][i] = 0 # replace nan's with 0's 
+            x = np.array(x)
+            x = x.reshape(1, -1)
 
-        pred = classifier.predict(x)
+            # temporary 'isnan' detection - basically just handles 0 errors after the fact
+            # this CANNOT be included in training and testing!!!!!!!!!! it would cause false representaiton 
+            for i in range(len(x[0])):
+                if math.isnan(x[0][i]):
+                    x[0][i] = 0 # replace nan's with 0's 
 
-        predictions.append(pred)
-        log.append(a)
+            pred = classifier.predict(x)
 
-    log_fs = 1 / ((log[2] - log[1]) / fs)
-    predictions = np.array(predictions).T[0]
-    return predictions, log_fs
+            predictions.append(pred)
+            log.append(a)
+        # -- 
+    if rms < rms_threshold:  
+        log_fs = 1 / ((log[2] - log[1]) / fs)
+        predictions = np.array(predictions).T[0]
+    else:
+        log_fs = False
+        predictions = False
+        pred_bool = False
+
+    return predictions, log_fs, pred_bool
 
 
-def make_decision(predictions, log_fs, n_noise_thresh=5):
+def make_decision(predictions, log_fs, pred_bool, n_noise_thresh=5):
     cut = False
     cut_point = False
-    i = 0
-    count = 0
-    for pred in predictions:
-        if pred == 1:
-            count += 1
-            first_noise = i
-        if count == n_noise_thresh:
-            cut_point = first_noise / log_fs
-            cut = True
-            break
-        i += 1
+
+    if pred_bool:
+        i = 0
+        count = 0
+        for pred in predictions:
+            if pred == 1:
+                count += 1
+                first_noise = i
+            if count == n_noise_thresh:
+                cut_point = first_noise / log_fs
+                cut = True
+                break
+            i += 1
+
     return cut, cut_point
